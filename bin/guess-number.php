@@ -1,10 +1,11 @@
 #!/usr/bin/env php
 
 <?php
-$GithubPath = __DIR__.'/../vendor/autoload.php';
-$PackagistPath = __DIR__.'/../../../autoload.php';
 
-require file_exists($GithubPath) ? $GithubPath : $PackagistPath;
+$GitHubPath = __DIR__ . '/../vendor/autoload.php';
+$PackagistPath = __DIR__ . '/../../../autoload.php';
+
+require file_exists($GitHubPath) ? $GitHubPath : $PackagistPath;
 
 use function ortemx\GuessNumber\Controller\startGame;
 

@@ -13,7 +13,7 @@ class GameModel
     {
         $this->db_path = $db_path;
         $this->createTables();
-        $this->setSettings(10, 10);
+        $this->setSettings(100, 10);
         $settings = $this->getSettings();
         $this->max_number = $settings['maxNumber'];
         $this->attempt_count = $settings['attemptCount'];

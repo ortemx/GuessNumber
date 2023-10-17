@@ -41,7 +41,7 @@ class GameView
         line("Attempts exhausted. The number was $guested_number.");
     }
 
-    public function ComparisonMessage($comparison, $attempt_number, $number_of_attempts)
+    public function comparisonMessage($comparison, $attempt_number, $number_of_attempts)
     {
         if ($attempt_number != $number_of_attempts) {
             line("The secret number is $comparison. Attempts left: " . ($number_of_attempts - $attempt_number));
@@ -70,26 +70,26 @@ class GameView
         \t0. Exit");
     }
 
-    public function showGames($games, $mode = "ALL")
+    public function showGames($games, $filter = "ALL")
     {
         print("\033[2J\033[;H");
-        if ($mode == "ALL") {
+        if ($filter == "ALL") {
             line("List of all games:");
-        } elseif ($mode == "WON") {
+        } elseif ($filter == "WON") {
             line("List of games won by players");
-        } elseif ($mode == "LOSE") {
+        } elseif ($filter == "LOSE") {
             line("List of games lost by players");
         }
         line("|  id |                 date | player | max number | secret number | result |");
         foreach ($games as $game) {
             printf(
                 "| %3s | %20s | %6s | %10s | %13s | %6s |\n",
-                $game['gameId'],
-                $game['dateGame'],
-                $game['playerName'],
-                $game['maxNumber'],
-                $game['secretNumber'],
-                $game['gameResult']
+                $game['id'],
+                $game['date_game'],
+                $game['player_name'],
+                $game['max_number'],
+                $game['secret_number'],
+                $game['outcome']
             );
         }
         line("Press ENTER to return");
@@ -101,7 +101,7 @@ class GameView
         line("List of top players");
         line("|   name | wins | losses |");
         foreach ($players as $player) {
-            printf("| %6s | %4s | %6s |\n", $player['playerName'], $player['wins'], $player['losses']);
+            printf("| %6s | %4s | %6s |\n", $player['player_name'], $player['wins'], $player['losses']);
         }
         line("Press ENTER to return");
     }
@@ -112,7 +112,7 @@ class GameView
         line("Replay of game with id $gameId");
         line("| attempt | entered number |   reply |");
         foreach ($moves as $move) {
-            printf("| %7s | %14s | %7s |\n", $move['attempt'], $move['enteredNumber'], $move['replay']);
+            printf("| %7s | %14s | %7s |\n", $move['attempt'], $move['entered_number'], $move['reply']);
         }
         line("Press ENTER to return");
     }

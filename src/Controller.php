@@ -12,8 +12,8 @@ use function cli\prompt;
 function gameLoop($model, $view)
 {
     $settings = $model->getSettings();
-    $attempt_count = $settings['attemptCount'];
-    $maxNumber = $settings['maxNumber'];
+    $attempt_count = $settings['attempt_count'];
+    $maxNumber = $settings['max_number'];
 
     $attempt_number = 0;
     $guested_number = $model->guessNumber();

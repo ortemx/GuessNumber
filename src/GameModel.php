@@ -2,7 +2,7 @@
 
 namespace ortemx\GuessNumber\GameModel;
 
-use SQLite3;
+use RedBeanPHP\R;
 
 class GameModel
 {
@@ -12,11 +12,12 @@ class GameModel
     public function __construct($db_path)
     {
         $this->db_path = $db_path;
+        R::setup('sqlite:' . $this->db_path);
         $this->createTables();
         $this->setSettings(100, 10);
         $settings = $this->getSettings();
-        $this->max_number = $settings['maxNumber'];
-        $this->attempt_count = $settings['attemptCount'];
+        $this->max_number = $settings['max_number'];
+        $this->attempt_count = $settings['attempt_count'];
     }
 
     public function getDbPath()
@@ -27,129 +28,105 @@ class GameModel
     private function createTables()
     {
         if (!file_exists($this->db_path)) {
-            $db = new SQLite3($this->db_path);
-            $games_info_table = "CREATE TABLE GamesInfo(
-                gameId INTEGER PRIMARY KEY,
-                dateGame DATETIME,        
-                playerName TEXT,
-                maxNumber INTEGER,
-                secretNumber INTEGER,
-                gameResult TEXT
-            )";
+            if (!R::inspect('gamesinfo')) {
+                $gamesInfoTable = R::dispense('gamesinfo');
+                $gamesInfoTable->id = 'INTEGER PRIMARY KEY';
+                $gamesInfoTable->date_game = 'DATETIME';
+                $gamesInfoTable->player_name = 'TEXT';
+                $gamesInfoTable->max_number = 'INTEGER';
+                $gamesInfoTable->secret_number = 'INTEGER';
+                $gamesInfoTable->outcome = 'TEXT';
+                R::store($gamesInfoTable);
+            }
 
-            $settings_table = "CREATE TABLE Settings(
-                maxNumber INTEGER,
-                attemptCount INTEGER
-            )";
+            if (!R::inspect('setting')) {
+                $settingTable = R::dispense('setting');
+                R::store($settingTable);
+            }
 
-            $replays_table = "CREATE TABLE Replays(
-                gameId INTEGER,
-                attempt INTEGER,
-                enteredNumber INTEGER,
-                replay TEXT)";
-            $db->exec($games_info_table);
-            $db->exec($settings_table);
-            $db->exec($replays_table);
-            $db->close();
+            if (!R::inspect('replay')) {
+                $replayTable = R::dispense('replay');
+                $replayTable->id = 'INTEGER PRIMARY KEY';
+                $replayTable->gameId = 'INTEGER';
+                $replayTable->attempt = 'INTEGER';
+                $replayTable->enteredNumber = 'INTEGER';
+                $replayTable->reply = 'TEXT';
+                R::store($replayTable);
+            }
         }
     }
 
     private function setSettings($max_number, $attempt_count)
     {
-        $db = new SQLite3($this->db_path);
-        $insert_settings = "INSERT INTO Settings VALUES($max_number, $attempt_count)";
-        $db->exec($insert_settings);
-        $db->close();
+        $setting = R::findOne('setting');
+        if ($setting) {
+            $setting->maxNumber = $max_number;
+            $setting->attemptCount = $attempt_count;
+            R::store($setting);
+        }
     }
 
     public function getSettings()
     {
-        $db = new SQLite3($this->db_path);
-        $sql = "SELECT * FROM Settings";
-        $result = $db->query($sql);
-        $settings = $result->fetchArray(SQLITE3_ASSOC);
-        $db->close();
+        $settings = R::findOne('setting');
         return $settings;
     }
 
     public function getGames($gameFilter = "ALL")
     {
-        $db = new SQLite3($this->db_path);
-        $sql = "";
-        if ($gameFilter == "ALL") {
-            $sql = "SELECT * FROM GamesInfo";
-        } elseif ($gameFilter == "WON") {
-            $sql = "SELECT * FROM GamesInfo WHERE gameResult = 'won'";
-        } elseif ($gameFilter == "LOSE") {
-            $sql = "SELECT * FROM GamesInfo WHERE gameResult = 'lose'";
-        }
-        $result = $db->query($sql);
         $games = [];
-        while ($game = $result->fetchArray(SQLITE3_ASSOC)) {
-            $games[] = $game;
+
+        if ($gameFilter == "ALL") {
+            $games = R::findAll('gamesinfo');
+        } elseif ($gameFilter == "WON") {
+            $games = R::find('gamesinfo', 'outcome = ?', ['won']);
+        } elseif ($gameFilter == "LOSE") {
+            $games = R::find('gamesinfo', 'outcome = ?', ['lose']);
         }
-        $db->close();
         return $games;
     }
 
     public function getTopPlayers()
     {
-        $db = new SQLite3($this->db_path);
-        $sql =
-        "SELECT 
-            playerName, 
-            COUNT(CASE WHEN gameResult = 'won' THEN 1 END) AS wins, 
-            COUNT(CASE WHEN gameResult = 'lose' THEN 1 END) AS losses 
-        FROM GamesInfo 
-        GROUP BY playerName 
-        ORDER BY wins DESC";
-        $result = $db->query($sql);
-        $players = [];
-        while ($player = $result->fetchArray(SQLITE3_ASSOC)) {
-            $players[] = $player;
-        }
-        $db->close();
+        $sql = "
+            SELECT 
+                player_name, 
+                COUNT(CASE WHEN outcome = 'won' THEN 1 END) AS wins, 
+                COUNT(CASE WHEN outcome = 'lose' THEN 1 END) AS losses 
+            FROM gamesinfo 
+            GROUP BY player_name 
+            ORDER BY wins DESC
+        ";
+        $players = R::getAll($sql);
         return $players;
     }
 
     public function getReplayOfGame($gameId)
     {
-        $db = new SQLite3($this->db_path);
-        $sql = "SELECT * FROM Replays WHERE gameId = " . $gameId;
-        $result = $db->query($sql);
-        $moves = [];
-        while ($move = $result->fetchArray(SQLITE3_ASSOC)) {
-            $moves[] = $move;
-        }
-        $db->close();
+        $moves = R::findAll('replay', 'game_id = ?', [$gameId]);
         return $moves;
     }
 
     public function saveGameIntoDatabase($logs)
     {
-        $dbPath = 'gamedb.db';
-        $db = new SQLite3($dbPath);
-        $sql = "INSERT INTO GamesInfo 
-        (dateGame, playerName, maxNumber, secretNumber, gameResult) VALUES(
-            '" . $logs->date_game . "',
-            '" . $logs->player_name . "',
-            '" . $logs->max_number . "',
-            '" . $logs->secret_number . "',
-            '" . $logs->outcome . "'
-        )";
-        $db->exec($sql);
-        $lastId = $db->lastInsertRowID();
-        for ($i = 0; $i < count($logs->attempts); $i++) {
-            $sql = "INSERT INTO Replays
-            (gameId, attempt, enteredNumber, replay) VALUES(
-                '" . $lastId . "',
-                '" . $logs->attempts[$i] . "',
-                '" . $logs->entered_numbers[$i] . "',
-                '" . $logs->answers[$i] . "'
-            )";
-            $db->exec($sql);
+        $gameInfo = R::dispense('gamesinfo');
+        $gameInfo->date_game = $logs->date_game;
+        $gameInfo->player_name = $logs->player_name;
+        $gameInfo->max_number = $logs->max_number;
+        $gameInfo->secret_number = $logs->secret_number;
+        $gameInfo->outcome = $logs->outcome;
+        R::store($gameInfo);
+
+        $lastId = $gameInfo->id;
+
+        for ($i = 0; $i < count($logs->entered_numbers); $i++) {
+            $replay = R::dispense('replay');
+            $replay->gameId = $lastId;
+            $replay->attempt = $logs->attempts[$i];
+            $replay->entered_number = $logs->entered_numbers[$i];
+            $replay->reply = $logs->answers[$i];
+            R::store($replay);
         }
-        $db->close();
     }
 
     public function guessNumber()
